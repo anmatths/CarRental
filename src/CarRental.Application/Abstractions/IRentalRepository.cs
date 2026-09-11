@@ -10,6 +10,8 @@ public interface IRentalRepository
 
     Task<IReadOnlyCollection<Rental>> GetActiveRentalsForCarAsync(
         Guid carId,
+        DateOnly startDate,
+        DateOnly endDate,
         CancellationToken cancellationToken = default);
 
     Task AddAsync(Rental rental, CancellationToken cancellationToken = default);

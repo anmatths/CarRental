@@ -11,7 +11,8 @@ public sealed class ModifyRentalCommandHandler(IRentalRepository rentalRepositor
         var rental = await rentalRepository.GetByIdAsync(command.RentalId, cancellationToken)
             ?? throw new RentalNotFoundException(command.RentalId);
 
-        var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(rental.CarId, cancellationToken);
+        var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(
+            rental.CarId, command.StartDate, command.EndDate, cancellationToken);
         if (activeRentals.Any(existing => existing.Id != rental.Id && existing.Overlaps(command.StartDate, command.EndDate)))
             throw new CarNotAvailableException(rental.CarId);
 

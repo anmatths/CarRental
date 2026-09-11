@@ -14,7 +14,8 @@ public sealed class CheckCarAvailabilityQueryHandler(ICarRepository carRepositor
 
         foreach (var car in cars)
         {
-            var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(car.Id, cancellationToken);
+            var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(
+                car.Id, query.StartDate, query.EndDate, cancellationToken);
             if (!activeRentals.Any(rental => rental.Overlaps(query.StartDate, query.EndDate)))
                 availableCars.Add(car.ToDto());
         }

@@ -18,7 +18,8 @@ public sealed class RegisterRentalCommandHandler(
         if (await carRepository.GetByIdAsync(command.CarId, cancellationToken) is null)
             throw new CarNotFoundException(command.CarId);
 
-        var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(command.CarId, cancellationToken);
+        var activeRentals = await rentalRepository.GetActiveRentalsForCarAsync(
+            command.CarId, command.StartDate, command.EndDate, cancellationToken);
         if (activeRentals.Any(rental => rental.Overlaps(command.StartDate, command.EndDate)))
             throw new CarNotAvailableException(command.CarId);
 

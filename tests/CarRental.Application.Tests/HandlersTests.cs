@@ -203,9 +203,13 @@ public sealed class HandlersTests
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyCollection<Rental>> GetActiveRentalsForCarAsync(Guid carId, CancellationToken cancellationToken = default) =>
+        public Task<IReadOnlyCollection<Rental>> GetActiveRentalsForCarAsync(
+            Guid carId,
+            DateOnly startDate,
+            DateOnly endDate,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<Rental>>(Rentals
-                .Where(rental => rental.CarId == carId && rental.Status == RentalStatus.Active).ToArray());
+                .Where(rental => rental.CarId == carId && rental.Overlaps(startDate, endDate)).ToArray());
 
         public Task<IReadOnlyCollection<Rental>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<Rental>>(Rentals.ToArray());
