@@ -126,6 +126,50 @@ public sealed class HandlersTests
     }
 
     [Fact]
+    public async Task ModifyRental_WhenMissing_Throws()
+    {
+        var handler = new ModifyRentalCommandHandler(new RentalRepository());
+
+        await Assert.ThrowsAsync<RentalNotFoundException>(
+            () => handler.HandleAsync(new ModifyRentalCommand(Guid.NewGuid(), StartDate, EndDate)));
+    }
+
+    [Fact]
+    public async Task ModifyRental_WhenPeriodIsInvalid_Throws()
+    {
+        var rental = Rental.Create(Guid.NewGuid(), Guid.NewGuid(), StartDate, EndDate);
+        var handler = new ModifyRentalCommandHandler(new RentalRepository(rental));
+
+        await Assert.ThrowsAsync<InvalidRentalPeriodException>(
+            () => handler.HandleAsync(new ModifyRentalCommand(rental.Id, EndDate, StartDate)));
+    }
+
+    [Fact]
+    public async Task ModifyRental_WhenPeriodIsAdjacentToAnotherRental_Succeeds()
+    {
+        var carId = Guid.NewGuid();
+        var rental = Rental.Create(Guid.NewGuid(), carId, StartDate, EndDate);
+        var adjacent = Rental.Create(Guid.NewGuid(), carId, new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 15));
+        var handler = new ModifyRentalCommandHandler(new RentalRepository(rental, adjacent));
+
+        var result = await handler.HandleAsync(
+            new ModifyRentalCommand(rental.Id, new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 10)));
+
+        Assert.Equal(new DateOnly(2026, 10, 10), result.EndDate);
+    }
+
+    [Fact]
+    public async Task ModifyRental_WhenCancelled_Throws()
+    {
+        var rental = Rental.Create(Guid.NewGuid(), Guid.NewGuid(), StartDate, EndDate);
+        rental.Cancel();
+        var handler = new ModifyRentalCommandHandler(new RentalRepository(rental));
+
+        await Assert.ThrowsAsync<InvalidRentalOperationException>(
+            () => handler.HandleAsync(new ModifyRentalCommand(rental.Id, StartDate, EndDate)));
+    }
+
+    [Fact]
     public async Task ModifyRental_DoesNotTreatItselfAsAConflict()
     {
         var rental = Rental.Create(Guid.NewGuid(), Guid.NewGuid(), StartDate, EndDate);
@@ -153,6 +197,18 @@ public sealed class HandlersTests
         var handler = new CancelRentalCommandHandler(new RentalRepository());
 
         await Assert.ThrowsAsync<RentalNotFoundException>(() => handler.HandleAsync(new CancelRentalCommand(Guid.NewGuid())));
+    }
+
+    [Fact]
+    public async Task CancelRental_WhenCalledTwice_PreservesDomainIdempotency()
+    {
+        var rental = Rental.Create(Guid.NewGuid(), Guid.NewGuid(), StartDate, EndDate);
+        var handler = new CancelRentalCommandHandler(new RentalRepository(rental));
+
+        await handler.HandleAsync(new CancelRentalCommand(rental.Id));
+        var result = await handler.HandleAsync(new CancelRentalCommand(rental.Id));
+
+        Assert.Equal(RentalStatus.Cancelled, result.Status);
     }
 
     [Fact]

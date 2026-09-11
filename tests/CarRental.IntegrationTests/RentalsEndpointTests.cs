@@ -70,11 +70,71 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    private async Task SeedAsync(Customer customer, Car car)
+    [Fact]
+    public async Task Put_WhenRentalExists_ChangesItsPeriodAndReturnsTheUpdatedRental()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        var car = new Car(Guid.NewGuid(), "SUV", "RAV4");
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5));
+        await SeedAsync(customer, car, rental);
+
+        var response = await _client.PutAsJsonAsync($"/api/rentals/{rental.Id}", new
+        {
+            startDate = "2026-10-05",
+            endDate = "2026-10-10"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RentalResponse>(new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonStringEnumConverter() }
+        });
+        Assert.NotNull(result);
+        Assert.Equal(new DateOnly(2026, 10, 5), result.StartDate);
+        Assert.Equal(new DateOnly(2026, 10, 10), result.EndDate);
+    }
+
+    [Fact]
+    public async Task Put_WithInvalidPeriod_ReturnsBadRequest()
+    {
+        var response = await _client.PutAsJsonAsync($"/api/rentals/{Guid.NewGuid()}", new
+        {
+            startDate = "2026-10-10",
+            endDate = "2026-10-10"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_CancelsButKeepsTheRentalAndReleasesAvailability()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        var car = new Car(Guid.NewGuid(), "SUV", "RAV4");
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 10));
+        await SeedAsync(customer, car, rental);
+
+        var response = await _client.DeleteAsync($"/api/rentals/{rental.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
+            var persisted = await dbContext.Rentals.SingleAsync(entity => entity.Id == rental.Id);
+            Assert.Equal(RentalStatus.Cancelled, persisted.Status);
+        }
+
+        var availability = await _client.GetFromJsonAsync<List<AvailableCarResponse>>(
+            "/api/cars/availability?startDate=2026-10-01&endDate=2026-10-10");
+        Assert.Contains(availability!, availableCar => availableCar.Id == car.Id);
+    }
+
+    private async Task SeedAsync(Customer customer, Car car, params Rental[] rentals)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
         dbContext.AddRange(customer, car);
+        dbContext.Rentals.AddRange(rentals);
         await dbContext.SaveChangesAsync();
     }
 
@@ -89,6 +149,8 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
     public Task DisposeAsync() => Task.CompletedTask;
 
     private sealed record RentalResponse(Guid Id, Guid CustomerId, Guid CarId, DateOnly StartDate, DateOnly EndDate, RentalStatus Status);
+
+    private sealed record AvailableCarResponse(Guid Id, string Type, string Model);
 }
 
 public sealed class RentalsApiFactory : WebApplicationFactory<Program>

@@ -46,8 +46,15 @@ public sealed class RentalRepository(CarRentalDbContext dbContext) : IRentalRepo
 
     public async Task UpdateAsync(Rental rental, CancellationToken cancellationToken = default)
     {
-        dbContext.Rentals.Update(rental);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            dbContext.Rentals.Update(rental);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsActiveRentalPeriodConstraintViolation(exception))
+        {
+            throw new CarNotAvailableException(rental.CarId);
+        }
     }
 
     private static bool IsActiveRentalPeriodConstraintViolation(DbUpdateException exception) =>

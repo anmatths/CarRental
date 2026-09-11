@@ -71,6 +71,42 @@ public sealed class PostgreSqlRentalConstraintTests : IClassFixture<PostgreSqlFi
             Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 4), new DateOnly(2026, 10, 10))));
     }
 
+    [Fact]
+    public async Task Repository_MapsAnUpdateExclusionViolationToCarNotAvailable()
+    {
+        var (customer, car) = await SeedCustomerAndCarAsync();
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5));
+        await AddRentalAsync(rental);
+        await AddRentalAsync(Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 15)));
+
+        await using var context = CreateDbContext();
+        var repository = new RentalRepository(context);
+        var persisted = await repository.GetByIdAsync(rental.Id);
+        Assert.NotNull(persisted);
+        persisted.ChangePeriod(new DateOnly(2026, 10, 8), new DateOnly(2026, 10, 12));
+
+        await Assert.ThrowsAsync<CarNotAvailableException>(() => repository.UpdateAsync(persisted));
+    }
+
+    [Fact]
+    public async Task CancellingAnActiveRental_ReleasesItsPeriodForANewRental()
+    {
+        var (customer, car) = await SeedCustomerAndCarAsync();
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5));
+        await AddRentalAsync(rental);
+
+        await using (var context = CreateDbContext())
+        {
+            var repository = new RentalRepository(context);
+            var persisted = await repository.GetByIdAsync(rental.Id);
+            Assert.NotNull(persisted);
+            persisted.Cancel();
+            await repository.UpdateAsync(persisted);
+        }
+
+        await AddRentalAsync(Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5)));
+    }
+
     public async Task InitializeAsync()
     {
         await using var context = CreateDbContext();

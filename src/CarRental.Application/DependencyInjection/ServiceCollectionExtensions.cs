@@ -1,3 +1,5 @@
+using CarRental.Application.Commands.CancelRental;
+using CarRental.Application.Commands.ModifyRental;
 using CarRental.Application.Commands.RegisterCustomer;
 using CarRental.Application.Commands.RegisterRental;
 using CarRental.Application.Queries.CheckCarAvailability;
@@ -11,6 +13,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<RegisterCustomerCommandHandler>();
         services.AddScoped<RegisterRentalCommandHandler>();
+        services.AddScoped<ModifyRentalCommandHandler>();
+        services.AddScoped<CancelRentalCommandHandler>();
         services.AddScoped<CheckCarAvailabilityQueryHandler>();
 
         return services;
