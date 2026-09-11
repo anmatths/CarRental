@@ -8,7 +8,8 @@ namespace CarRental.Application.Commands.RegisterRental;
 public sealed class RegisterRentalCommandHandler(
     ICustomerRepository customerRepository,
     ICarRepository carRepository,
-    IRentalRepository rentalRepository)
+    IRentalRepository rentalRepository,
+    IAvailabilityCache? availabilityCache = null)
 {
     public async Task<RentalDto> HandleAsync(RegisterRentalCommand command, CancellationToken cancellationToken = default)
     {
@@ -25,6 +26,7 @@ public sealed class RegisterRentalCommandHandler(
 
         var rental = Rental.Create(command.CustomerId, command.CarId, command.StartDate, command.EndDate);
         await rentalRepository.AddAsync(rental, cancellationToken);
+        availabilityCache?.Invalidate();
         return rental.ToDto();
     }
 }

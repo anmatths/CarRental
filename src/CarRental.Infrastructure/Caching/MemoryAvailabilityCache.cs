@@ -11,36 +11,52 @@ public sealed class MemoryAvailabilityCache(
     ILogger<MemoryAvailabilityCache> logger) : IAvailabilityCache
 {
     private static readonly TimeSpan AbsoluteExpiration = TimeSpan.FromMinutes(3);
+    private long _generation;
+
+    public long Generation => Volatile.Read(ref _generation);
+
+    public void Invalidate()
+    {
+        var generation = Interlocked.Increment(ref _generation);
+        logger.LogDebug("Availability cache invalidated; generation advanced to {AvailabilityCacheGeneration}", generation);
+    }
 
     public async Task<IReadOnlyCollection<AvailableCarDto>> GetOrCreateAsync(
         CheckCarAvailabilityQuery query,
         Func<CancellationToken, Task<IReadOnlyCollection<AvailableCarDto>>> factory,
         CancellationToken cancellationToken = default)
     {
-        var key = CreateKey(query);
-        if (cache.TryGetValue<IReadOnlyCollection<AvailableCarDto>>(key, out var cachedCars))
+        while (true)
         {
-            logger.LogDebug("Availability cache hit for {AvailabilityCacheKey}", key);
-            return cachedCars!;
+            var generation = Volatile.Read(ref _generation);
+            var key = CreateKey(query, generation);
+            if (cache.TryGetValue<IReadOnlyCollection<AvailableCarDto>>(key, out var cachedCars))
+            {
+                logger.LogDebug("Availability cache hit for {AvailabilityCacheKey}", key);
+                return cachedCars!;
+            }
+
+            logger.LogDebug("Availability cache miss for {AvailabilityCacheKey}", key);
+            var cars = await factory(cancellationToken);
+            var cachedResult = cars.ToArray();
+            cache.Set(key, cachedResult, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = AbsoluteExpiration
+            });
+
+            if (generation == Volatile.Read(ref _generation))
+                return cachedResult;
+
+            cache.Remove(key);
         }
-
-        logger.LogDebug("Availability cache miss for {AvailabilityCacheKey}", key);
-        var cars = await factory(cancellationToken);
-        var cachedResult = cars.ToArray();
-        cache.Set(key, cachedResult, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = AbsoluteExpiration
-        });
-
-        return cachedResult;
     }
 
-    public static string CreateKey(CheckCarAvailabilityQuery query)
+    public static string CreateKey(CheckCarAvailabilityQuery query, long generation = 0)
     {
         var normalizedQuery = query.NormalizeFilters();
 
         return FormattableString.Invariant(
-            $"availability:{normalizedQuery.StartDate:yyyy-MM-dd}:{normalizedQuery.EndDate:yyyy-MM-dd}:{EscapeFilter(normalizedQuery.Type)}:{EscapeFilter(normalizedQuery.Model)}");
+            $"availability:v{generation}:{normalizedQuery.StartDate:yyyy-MM-dd}:{normalizedQuery.EndDate:yyyy-MM-dd}:{EscapeFilter(normalizedQuery.Type)}:{EscapeFilter(normalizedQuery.Model)}");
     }
 
     private static string EscapeFilter(string? value) => value is null ? "-" : Uri.EscapeDataString(value);

@@ -4,7 +4,7 @@ using CarRental.Application.Exceptions;
 
 namespace CarRental.Application.Commands.ModifyRental;
 
-public sealed class ModifyRentalCommandHandler(IRentalRepository rentalRepository)
+public sealed class ModifyRentalCommandHandler(IRentalRepository rentalRepository, IAvailabilityCache? availabilityCache = null)
 {
     public async Task<RentalDto> HandleAsync(ModifyRentalCommand command, CancellationToken cancellationToken = default)
     {
@@ -18,6 +18,7 @@ public sealed class ModifyRentalCommandHandler(IRentalRepository rentalRepositor
 
         rental.ChangePeriod(command.StartDate, command.EndDate);
         await rentalRepository.UpdateAsync(rental, cancellationToken);
+        availabilityCache?.Invalidate();
         return rental.ToDto();
     }
 }

@@ -4,7 +4,7 @@ using CarRental.Application.Exceptions;
 
 namespace CarRental.Application.Commands.CancelRental;
 
-public sealed class CancelRentalCommandHandler(IRentalRepository rentalRepository)
+public sealed class CancelRentalCommandHandler(IRentalRepository rentalRepository, IAvailabilityCache? availabilityCache = null)
 {
     public async Task<RentalDto> HandleAsync(CancelRentalCommand command, CancellationToken cancellationToken = default)
     {
@@ -13,6 +13,7 @@ public sealed class CancelRentalCommandHandler(IRentalRepository rentalRepositor
 
         rental.Cancel();
         await rentalRepository.UpdateAsync(rental, cancellationToken);
+        availabilityCache?.Invalidate();
         return rental.ToDto();
     }
 }
