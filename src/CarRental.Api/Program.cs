@@ -1,5 +1,6 @@
 using CarRental.Application.DependencyInjection;
 using CarRental.Api.ExceptionHandling;
+using CarRental.Api.Persistence;
 using CarRental.Infrastructure.DependencyInjection;
 using System.Text.Json.Serialization;
 
@@ -16,6 +17,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+await app.ApplyDevelopmentMigrationsAsync();
 
 // Configure the HTTP request pipeline.
 
