@@ -12,7 +12,7 @@ public sealed class CarsController(CheckCarAvailabilityQueryHandler availability
     /// <summary>Gets cars available during the requested half-open period [startDate, endDate).</summary>
     [HttpGet("availability")]
     [ProducesResponseType<IReadOnlyCollection<AvailableCarDto>>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<ActionResult<IReadOnlyCollection<AvailableCarDto>>> GetAvailability(
         [FromQuery] CheckCarAvailabilityRequest request,
         CancellationToken cancellationToken)

@@ -11,7 +11,7 @@ public sealed class CustomersController(RegisterCustomerCommandHandler registerC
     /// <summary>Registers a new customer.</summary>
     [HttpPost]
     [ProducesResponseType<CustomerResponse>(StatusCodes.Status201Created)]
-    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<ActionResult<CustomerResponse>> Register(
         RegisterCustomerRequest request,
         CancellationToken cancellationToken)
