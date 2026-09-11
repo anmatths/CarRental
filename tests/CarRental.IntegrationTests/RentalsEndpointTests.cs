@@ -6,6 +6,7 @@ using CarRental.Domain.Entities;
 using CarRental.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -68,6 +69,68 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_WithMissingCustomer_ReturnsNotFoundProblemDetails()
+    {
+        var response = await _client.PostAsJsonAsync("/api/rentals", new
+        {
+            customerId = Guid.NewGuid(),
+            carId = Guid.NewGuid(),
+            startDate = "2026-10-01",
+            endDate = "2026-10-10"
+        });
+
+        await AssertProblemDetailsAsync(response, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Post_WithMissingCar_ReturnsNotFoundProblemDetails()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        await SeedAsync(customer, new Car(Guid.NewGuid(), "SUV", "RAV4"));
+
+        var response = await _client.PostAsJsonAsync("/api/rentals", new
+        {
+            customerId = customer.Id,
+            carId = Guid.NewGuid(),
+            startDate = "2026-10-01",
+            endDate = "2026-10-10"
+        });
+
+        await AssertProblemDetailsAsync(response, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Post_WithUnavailableCar_ReturnsConflictProblemDetails()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        var car = new Car(Guid.NewGuid(), "SUV", "RAV4");
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 10));
+        await SeedAsync(customer, car, rental);
+
+        var response = await _client.PostAsJsonAsync("/api/rentals", new
+        {
+            customerId = customer.Id,
+            carId = car.Id,
+            startDate = "2026-10-05",
+            endDate = "2026-10-12"
+        });
+
+        await AssertProblemDetailsAsync(response, HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Put_WithMissingRental_ReturnsNotFoundProblemDetails()
+    {
+        var response = await _client.PutAsJsonAsync($"/api/rentals/{Guid.NewGuid()}", new
+        {
+            startDate = "2026-10-01",
+            endDate = "2026-10-10"
+        });
+
+        await AssertProblemDetailsAsync(response, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -136,6 +199,15 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         dbContext.AddRange(customer, car);
         dbContext.Rentals.AddRange(rentals);
         await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task AssertProblemDetailsAsync(HttpResponseMessage response, HttpStatusCode expectedStatus)
+    {
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal((int)expectedStatus, problem.Status);
     }
 
     public async Task InitializeAsync()

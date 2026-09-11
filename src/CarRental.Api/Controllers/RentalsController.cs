@@ -19,6 +19,7 @@ public sealed class RentalsController(
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<RentalResponse>> Register(
         RegisterRentalRequest request,
         CancellationToken cancellationToken)
@@ -36,6 +37,7 @@ public sealed class RentalsController(
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<RentalResponse>> Modify(
         Guid id,
         ModifyRentalRequest request,
@@ -53,6 +55,7 @@ public sealed class RentalsController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
         await cancelRentalHandler.HandleAsync(new CancelRentalCommand(id), cancellationToken);
