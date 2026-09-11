@@ -1,4 +1,5 @@
 using CarRental.Application.Commands.RegisterCustomer;
+using CarRental.Application.Commands.RegisterRental;
 using CarRental.Application.Queries.CheckCarAvailability;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,6 +10,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<RegisterCustomerCommandHandler>();
+        services.AddScoped<RegisterRentalCommandHandler>();
         services.AddScoped<CheckCarAvailabilityQueryHandler>();
 
         return services;

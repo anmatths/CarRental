@@ -5,6 +5,7 @@ using CarRental.Application.Commands.RegisterRental;
 using CarRental.Application.Exceptions;
 using CarRental.Application.Queries.CheckCarAvailability;
 using CarRental.Domain.Entities;
+using CarRental.Domain.Exceptions;
 
 namespace CarRental.Application.Tests;
 
@@ -57,6 +58,30 @@ public sealed class HandlersTests
 
         await Assert.ThrowsAsync<CarNotAvailableException>(
             () => handler.HandleAsync(new RegisterRentalCommand(customer.Id, car.Id, new DateOnly(2026, 10, 3), new DateOnly(2026, 10, 7))));
+    }
+
+    [Fact]
+    public async Task RegisterRental_WhenPeriodIsInvalid_Throws()
+    {
+        var customer = Customer();
+        var car = Car();
+        var handler = new RegisterRentalCommandHandler(new CustomerRepository(customer), new CarRepository(car), new RentalRepository());
+
+        await Assert.ThrowsAsync<InvalidRentalPeriodException>(
+            () => handler.HandleAsync(new RegisterRentalCommand(customer.Id, car.Id, EndDate, StartDate)));
+    }
+
+    [Fact]
+    public async Task RegisterRental_WhenPeriodIsAdjacent_AddsRental()
+    {
+        var customer = Customer();
+        var car = Car();
+        var rentals = new RentalRepository(Rental.Create(customer.Id, car.Id, StartDate, EndDate));
+        var handler = new RegisterRentalCommandHandler(new CustomerRepository(customer), new CarRepository(car), rentals);
+
+        await handler.HandleAsync(new RegisterRentalCommand(customer.Id, car.Id, EndDate, new DateOnly(2026, 10, 10)));
+
+        Assert.Equal(2, rentals.Rentals.Count);
     }
 
     [Fact]

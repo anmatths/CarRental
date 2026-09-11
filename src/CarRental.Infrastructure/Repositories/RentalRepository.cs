@@ -1,12 +1,16 @@
 using CarRental.Application.Abstractions;
+using CarRental.Application.Exceptions;
 using CarRental.Domain.Entities;
 using CarRental.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CarRental.Infrastructure.Repositories;
 
 public sealed class RentalRepository(CarRentalDbContext dbContext) : IRentalRepository
 {
+    internal const string ActiveRentalPeriodConstraint = "EX_Rentals_ActiveCarDateRange";
+
     public Task<Rental?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Rentals.SingleOrDefaultAsync(rental => rental.Id == id, cancellationToken);
 
@@ -29,8 +33,15 @@ public sealed class RentalRepository(CarRentalDbContext dbContext) : IRentalRepo
 
     public async Task AddAsync(Rental rental, CancellationToken cancellationToken = default)
     {
-        await dbContext.Rentals.AddAsync(rental, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.Rentals.AddAsync(rental, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsActiveRentalPeriodConstraintViolation(exception))
+        {
+            throw new CarNotAvailableException(rental.CarId);
+        }
     }
 
     public async Task UpdateAsync(Rental rental, CancellationToken cancellationToken = default)
@@ -38,4 +49,11 @@ public sealed class RentalRepository(CarRentalDbContext dbContext) : IRentalRepo
         dbContext.Rentals.Update(rental);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    private static bool IsActiveRentalPeriodConstraintViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ExclusionViolation,
+            ConstraintName: ActiveRentalPeriodConstraint
+        };
 }
