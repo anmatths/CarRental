@@ -4,6 +4,8 @@ using CarRental.Application.Commands.RegisterCustomer;
 using CarRental.Application.Commands.RegisterRental;
 using CarRental.Application.Abstractions;
 using CarRental.Application.Queries.CheckCarAvailability;
+using CarRental.Application.Queries.GetRental;
+using CarRental.Application.Queries.GetRentals;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CarRental.Application.DependencyInjection;
@@ -17,6 +19,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ModifyRentalCommandHandler>();
         services.AddScoped<CancelRentalCommandHandler>();
         services.AddScoped<CheckCarAvailabilityQueryHandler>();
+        services.AddScoped<GetRentalQueryHandler>();
+        services.AddScoped<GetRentalsQueryHandler>();
         services.AddScoped<ICheckCarAvailabilityQueryHandler>(serviceProvider =>
             new CachedCheckCarAvailabilityQueryHandler(
                 serviceProvider.GetRequiredService<CheckCarAvailabilityQueryHandler>(),

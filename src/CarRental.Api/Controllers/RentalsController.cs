@@ -2,6 +2,8 @@ using CarRental.Api.Contracts.Rentals;
 using CarRental.Application.Commands.CancelRental;
 using CarRental.Application.Commands.ModifyRental;
 using CarRental.Application.Commands.RegisterRental;
+using CarRental.Application.Queries.GetRental;
+using CarRental.Application.Queries.GetRentals;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarRental.Api.Controllers;
@@ -11,8 +13,31 @@ namespace CarRental.Api.Controllers;
 public sealed class RentalsController(
     RegisterRentalCommandHandler registerRentalHandler,
     ModifyRentalCommandHandler modifyRentalHandler,
-    CancelRentalCommandHandler cancelRentalHandler) : ControllerBase
+    CancelRentalCommandHandler cancelRentalHandler,
+    GetRentalQueryHandler getRentalHandler,
+    GetRentalsQueryHandler getRentalsHandler) : ControllerBase
 {
+    /// <summary>Gets a rental by its identifier.</summary>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<RentalResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public async Task<ActionResult<RentalResponse>> Get(Guid id, CancellationToken cancellationToken)
+    {
+        var rental = await getRentalHandler.HandleAsync(new GetRentalQuery(id), cancellationToken);
+        return Ok(RentalResponse.From(rental));
+    }
+
+    /// <summary>Gets all rentals.</summary>
+    [HttpGet]
+    [ProducesResponseType<IReadOnlyCollection<RentalResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public async Task<ActionResult<IReadOnlyCollection<RentalResponse>>> GetAll(CancellationToken cancellationToken)
+    {
+        var rentals = await getRentalsHandler.HandleAsync(new GetRentalsQuery(), cancellationToken);
+        return Ok(rentals.Select(RentalResponse.From).ToArray());
+    }
+
     /// <summary>Registers a rental for an available car during the half-open period [startDate, endDate).</summary>
     [HttpPost]
     [ProducesResponseType<RentalResponse>(StatusCodes.Status201Created)]

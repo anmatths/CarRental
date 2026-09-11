@@ -58,6 +58,66 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
     }
 
     [Fact]
+    public async Task GetById_WhenRentalExists_ReturnsItsData()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        var car = new Car(Guid.NewGuid(), "SUV", "RAV4");
+        var rental = Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5));
+        await SeedAsync(customer, car, rental);
+
+        var response = await _client.GetAsync($"/api/rentals/{rental.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await ReadRentalAsync(response);
+        Assert.Equal(rental.Id, result.Id);
+        Assert.Equal(customer.Id, result.CustomerId);
+        Assert.Equal(car.Id, result.CarId);
+        Assert.Equal(new DateOnly(2026, 10, 1), result.StartDate);
+        Assert.Equal(new DateOnly(2026, 10, 5), result.EndDate);
+        Assert.Equal(RentalStatus.Active, result.Status);
+    }
+
+    [Fact]
+    public async Task GetById_WhenRentalDoesNotExist_ReturnsNotFoundProblemDetails()
+    {
+        var response = await _client.GetAsync($"/api/rentals/{Guid.NewGuid()}");
+
+        await AssertProblemDetailsAsync(response, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetAll_ReturnsPersistedRentalsIncludingTheirStatuses()
+    {
+        var customer = new Customer(Guid.NewGuid(), "Ada Lovelace", "Airport Road", "ada@example.com");
+        var firstCar = new Car(Guid.NewGuid(), "SUV", "RAV4");
+        var secondCar = new Car(Guid.NewGuid(), "Sedan", "Civic");
+        var active = Rental.Create(customer.Id, firstCar.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5));
+        var cancelled = Rental.Create(customer.Id, secondCar.Id, new DateOnly(2026, 10, 6), new DateOnly(2026, 10, 10));
+        cancelled.Cancel();
+        await SeedAsync(customer, firstCar, active);
+        await SeedAdditionalAsync(secondCar, cancelled);
+
+        var response = await _client.GetAsync("/api/rentals");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<List<RentalResponse>>(JsonOptions);
+        Assert.NotNull(result);
+        Assert.Contains(result, rental => rental.Id == active.Id && rental.Status == RentalStatus.Active);
+        Assert.Contains(result, rental => rental.Id == cancelled.Id && rental.Status == RentalStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenThereAreNoRentals_ReturnsOkAndAnEmptyCollection()
+    {
+        var response = await _client.GetAsync("/api/rentals");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<List<RentalResponse>>(JsonOptions);
+        Assert.NotNull(result);
+        Assert.Empty(result);
+    }
+
+    [Fact]
     public async Task Post_WithInvalidPeriod_ReturnsBadRequest()
     {
         var response = await _client.PostAsJsonAsync("/api/rentals", new
@@ -201,6 +261,15 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         await dbContext.SaveChangesAsync();
     }
 
+    private async Task SeedAdditionalAsync(Car car, params Rental[] rentals)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
+        dbContext.Add(car);
+        dbContext.Rentals.AddRange(rentals);
+        await dbContext.SaveChangesAsync();
+    }
+
     private static async Task AssertProblemDetailsAsync(HttpResponseMessage response, HttpStatusCode expectedStatus)
     {
         Assert.Equal(expectedStatus, response.StatusCode);
@@ -209,6 +278,14 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         Assert.NotNull(problem);
         Assert.Equal((int)expectedStatus, problem.Status);
     }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static async Task<RentalResponse> ReadRentalAsync(HttpResponseMessage response) =>
+        (await response.Content.ReadFromJsonAsync<RentalResponse>(JsonOptions))!;
 
     public async Task InitializeAsync()
     {

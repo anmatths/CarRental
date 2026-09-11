@@ -89,6 +89,8 @@ The API uses `IExceptionHandler` and `ProblemDetails` for consistent error respo
 | `POST` | `/api/customers` | Register a customer. |
 | `GET` | `/api/cars/availability` | Check available cars by period, with optional type/model filters. |
 | `POST` | `/api/rentals` | Register a rental. |
+| `GET` | `/api/rentals` | List persisted rentals. |
+| `GET` | `/api/rentals/{id}` | Get a rental by ID. |
 | `PUT` | `/api/rentals/{id}` | Modify an active rental period. |
 | `DELETE` | `/api/rentals/{id}` | Cancel a rental. |
 
