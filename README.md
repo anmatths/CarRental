@@ -120,6 +120,21 @@ docker compose down -v
 
 Docker uses development-only PostgreSQL credentials (`postgres` / `postgres`). They are not production credentials.
 
+### Development demo cars
+
+In Development, startup applies migrations and seeds the following deterministic demo cars. **Demo Cars are seeded only in Development.** No customers or rentals are created, so availability and rental booking can be tested immediately.
+
+| Type | Model |
+| --- | --- |
+| Sedan | Toyota Corolla |
+| Hatchback | Toyota Yaris |
+| Sedan | Honda Civic |
+| SUV | Honda CR-V |
+| Hatchback | Ford Focus |
+| Pickup | Ford Ranger |
+| Hatchback | Volkswagen Golf |
+| SUV | Volkswagen Taos |
+
 ## Run without Docker
 
 Install .NET 10 and make a PostgreSQL instance available. Set the `ConnectionStrings__CarRental` environment variable (or configure the `CarRental` connection string), then run:
