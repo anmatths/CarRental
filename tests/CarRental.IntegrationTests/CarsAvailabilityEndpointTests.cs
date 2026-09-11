@@ -158,7 +158,7 @@ public sealed class CarsAvailabilityEndpointTests : IClassFixture<CarsApiFactory
 
     private sealed record AvailableCarResponse(Guid Id, string Type, string Model);
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
@@ -167,7 +167,7 @@ public sealed class CarsAvailabilityEndpointTests : IClassFixture<CarsApiFactory
         ((MemoryCache)scope.ServiceProvider.GetRequiredService<IMemoryCache>()).Compact(1.0);
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 public sealed class CarsApiFactory : WebApplicationFactory<Program>

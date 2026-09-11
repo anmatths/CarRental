@@ -287,7 +287,7 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
     private static async Task<RentalResponse> ReadRentalAsync(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<RentalResponse>(JsonOptions))!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
@@ -295,7 +295,7 @@ public sealed class RentalsEndpointTests : IClassFixture<RentalsApiFactory>, IAs
         await dbContext.Database.EnsureCreatedAsync();
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     private sealed record RentalResponse(Guid Id, Guid CustomerId, Guid CarId, DateOnly StartDate, DateOnly EndDate, RentalStatus Status);
 

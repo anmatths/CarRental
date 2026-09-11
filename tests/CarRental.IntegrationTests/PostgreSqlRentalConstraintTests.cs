@@ -107,14 +107,14 @@ public sealed class PostgreSqlRentalConstraintTests : IClassFixture<PostgreSqlFi
         await AddRentalAsync(Rental.Create(customer.Id, car.Id, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 5)));
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await using var context = CreateDbContext();
         await context.Database.EnsureDeletedAsync();
         await context.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     private async Task<(Customer Customer, Car FirstCar)> SeedCustomerAndCarAsync()
     {
@@ -165,7 +165,7 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
 
     public string ConnectionString => _container.GetConnectionString();
 
-    public Task InitializeAsync() => _container.StartAsync();
+    public ValueTask InitializeAsync() => new(_container.StartAsync());
 
-    public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+    public ValueTask DisposeAsync() => _container.DisposeAsync();
 }
