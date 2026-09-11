@@ -4,6 +4,7 @@ using CarRental.Application.Dtos;
 namespace CarRental.Application.Queries.CheckCarAvailability;
 
 public sealed class CheckCarAvailabilityQueryHandler(ICarRepository carRepository, IRentalRepository rentalRepository)
+    : ICheckCarAvailabilityQueryHandler
 {
     public async Task<IReadOnlyCollection<AvailableCarDto>> HandleAsync(
         CheckCarAvailabilityQuery query,

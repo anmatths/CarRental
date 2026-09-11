@@ -7,7 +7,7 @@ namespace CarRental.Api.Controllers;
 
 [ApiController]
 [Route("api/cars")]
-public sealed class CarsController(CheckCarAvailabilityQueryHandler availabilityHandler) : ControllerBase
+public sealed class CarsController(ICheckCarAvailabilityQueryHandler availabilityHandler) : ControllerBase
 {
     /// <summary>Gets cars available during the requested half-open period [startDate, endDate).</summary>
     [HttpGet("availability")]

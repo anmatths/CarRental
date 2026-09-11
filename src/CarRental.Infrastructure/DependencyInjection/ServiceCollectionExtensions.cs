@@ -1,4 +1,5 @@
 using CarRental.Application.Abstractions;
+using CarRental.Infrastructure.Caching;
 using CarRental.Infrastructure.Persistence;
 using CarRental.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,8 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddDbContext<CarRentalDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddMemoryCache();
+        services.AddSingleton<IAvailabilityCache, MemoryAvailabilityCache>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICarRepository, CarRepository>();
         services.AddScoped<IRentalRepository, RentalRepository>();
